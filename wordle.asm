@@ -34,7 +34,12 @@ _start:
     mov rdx, 4
     syscall
 
-
+        ; --- Show difficulty menu ---
+    mov rax, 1             ; sys_write
+    mov rdi, 1             ; stdout
+    mov rsi, option
+    mov rdx, 4
+    syscall
 
     mov rax, 60       ; syscall number 60 for sys_exit
     mov rdi, 0      ; exit code 0
