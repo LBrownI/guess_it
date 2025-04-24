@@ -91,15 +91,14 @@ valid_input:
 
     ; --- Range Check (Safety) ---
     cmp edi, 1
-    jl invalid_input_after_parse    ; Should not happen if parsing is correct
+    jl invalid_input    ; Should not happen if parsing is correct
     cmp edi, 10
-    jg invalid_input_after_parse    ; Should not happen
+    jg invalid_input    ; Should not happen
 
     ; --- Compare Guess (EDI) with Target (EBX) ---
     cmp edi, ebx
-    je correct                      ; Guessed correctly!
+    je correct                      ; Guessed correctly! Equaalss
     jl too_low                      ; Guess is too low
-                                    ; Otherwise, fall through to too_high
 
 ; ------------------------- Feedback: Too High -------------------------
 too_high:
@@ -108,7 +107,7 @@ too_high:
     mov rsi, high_msg
     mov rdx, high_msg_len
     syscall
-    jmp game_loop                   ; Try again
+    jmp game_loop                   
 
 ; ------------------------- Feedback: Too Low -------------------------
 too_low:
@@ -117,7 +116,7 @@ too_low:
     mov rsi, low_msg
     mov rdx, low_msg_len
     syscall
-    jmp game_loop                   ; Try again
+    jmp game_loop                   
 
 ; ------------------------- Feedback: Correct -------------------------
 correct:
@@ -131,14 +130,5 @@ correct:
     mov rax, 60                     ; sys_exit
     xor rdi, rdi                    ; Exit code 0 (success)
     syscall
-
-; ------------------------- Post-Parse Invalid (Safety) -------------------------
-invalid_input_after_parse:
-    mov rax, 1                      ; sys_write
-    mov rdi, 1                      ; stdout
-    mov rsi, invalid_msg
-    mov rdx, invalid_msg_len
-    syscall
-    jmp game_loop                   ; Try again (stack already cleaned)
 
 ; ========================= End of Code =========================
