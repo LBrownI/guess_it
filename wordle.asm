@@ -4,7 +4,7 @@ section .data
     prompt      db "Guess a number (1-10): ", 0
     prompt_len  equ $ - prompt
 
-    low_msg     db "Too low!", 10       ; message + newline
+    low_msg     db "Too low!", 10       
     low_msg_len equ $ - low_msg
 
     high_msg    db "Too high!", 10
@@ -17,18 +17,18 @@ section .text
     global _start
 
 _start:
-    xor     rdx, rdx      ; limpia RDX antes de rdtsc
-    rdtsc                 ; RDX:RAX 
+    ; === 1) Seed and generate target number ===
+    ; Read Time Stamp Counter into RDX:RAX
+    rdtsc                ; EDX:EAX = timestamp counter
 
-    ; Uso de RAX (parte baja del timestamp) como semilla:
-    mov     rbx, rax      ; copia semilla a RBX
+    mov ecx, 10          ; Queremos un número del 0 al 9
+    xor edx, edx         ; Limpiamos EDX para la división
+    div ecx              ; Divide EDX:EAX entre ECX → cociente en EAX, resto en EDX
 
-    ; rnd = (rbx % 10) + 1
-    mov     rax, rbx
-    mov     rcx, 10
-    xor     rdx, rdx
-    div     rcx           ; RAX = quot, RDX = rem
-    inc     rdx           ; rem 0..9 → 1..10
+    add edx, 1           ; Lo convertimos a rango 1–10
+
+    ; Guardamos el número aleatorio en EBX para mostrarlo o usarlo
+    mov ebx, edx           
 
 game_loop:
     ; === 2) Prompt user ===
@@ -39,11 +39,11 @@ game_loop:
     syscall
 
     ; === 3) Read user input ===
-    sub     rsp, 16            ; reserve 16 bytes on stack for input buffer
-    mov     rax, 0             ; syscall: read
-    mov     rdi, 0             ; stdin
-    lea     rsi, [rsp]         ; buffer address
-    mov     rdx, 16            ; max bytes to read
+    sub rsp, 16
+    mov rsi, rsp
+    mov rax, 0           ; syscall: read
+    mov rdi, 0           ; stdin
+    mov rdx, 16          ; max bytes
     syscall
 
     ; === 4) Convert ASCII input to integer ===
