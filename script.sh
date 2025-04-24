@@ -1,2 +1,2 @@
-nasm -f elf64 wordle.asm -o wordle.o
-ld wordle.o -o wordle_prog
+nasm -f elf64 guess.asm -o guess.o
+ld guess.o -o guess_prog
