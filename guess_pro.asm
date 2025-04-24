@@ -1,219 +1,206 @@
-; Description: A simple number guessing game for Linux x86-64.
-;              The program generates a pseudo-random number between 1 and 10
-;              and prompts the user to guess the number until they are correct.
+; Descripción: Un simple juego de adivinanza de números para Linux x86-64.
+;              El programa genera un número pseudoaleatorio entre 1 y 10
+;              y solicita al usuario que adivine el número hasta que acierte.
 ;
-; Build Instructions (using NASM and ld):
+; Instrucciones de compilación (usando NASM y ld):
 ; nasm -f elf64 guessing_game.asm -o guessing_game.o
 ; ld guessing_game.o -o guessing_game
 
 ; ==============================================================================
-; Data Section
+; Sección de Datos
 ; ==============================================================================
-; Contains initialized data (constants, strings).
+; Contiene datos inicializados (constantes, cadenas).
 section .data
-    ; --- User Interface Strings ---
-    prompt          db "Guess a number (1-10): ", 0  ; Prompt message (null-terminated for convenience, though not strictly needed for write)
-    prompt_len      equ $ - prompt                  ; Calculate length of the prompt string automatically
+    ; --- Cadenas de Interfaz de Usuario ---
+    prompt          db "Adivina un número (1-10): ", 0   ; Mensaje de solicitud (terminado en nulo por conveniencia, aunque no es estrictamente necesario para write)
+    prompt_len      equ $ - prompt                      ; Calcula automáticamente la longitud de la cadena de solicitud
 
-    low_msg         db "Too low!", 10               ; Message for guess too low (includes newline)
-    low_msg_len     equ $ - low_msg                 ; Calculate length of the 'too low' message
+    low_msg         db "Demasiado bajo!", 10             ; Mensaje para adivinanza demasiado baja (incluye salto de línea)
+    low_msg_len     equ $ - low_msg                     ; Calcula la longitud del mensaje 'demasiado bajo'
 
-    high_msg        db "Too high!", 10              ; Message for guess too high (includes newline)
-    high_msg_len    equ $ - high_msg                ; Calculate length of the 'too high' message
+    high_msg        db "Demasiado alto!", 10            ; Mensaje para adivinanza demasiado alta (incluye salto de línea)
+    high_msg_len    equ $ - high_msg                    ; Calcula la longitud del mensaje 'demasiado alto'
 
-    correct_msg     db "Correct!", 10               ; Message for correct guess (includes newline)
-    correct_msg_len equ $ - correct_msg             ; Calculate length of the 'correct' message
+    correct_msg     db "Correcto!", 10                  ; Mensaje para adivinanza correcta (incluye salto de línea)
+    correct_msg_len equ $ - correct_msg                 ; Calcula la longitud del mensaje 'correcto'
 
-    invalid_msg     db "Invalid input! ", 10        ; Message for invalid input (includes newline)
-    invalid_msg_len equ $ - invalid_msg             ; Calculate length of the 'invalid input' message
+    invalid_msg     db "Entrada inválida! ", 10         ; Mensaje para entrada inválida (incluye salto de línea)
+    invalid_msg_len equ $ - invalid_msg                 ; Calcula la longitud del mensaje 'entrada inválida'
 
 ; ==============================================================================
-; Text Section
+; Sección de Texto
 ; ==============================================================================
-; Contains the program code (instructions).
+; Contiene el código del programa (instrucciones).
 section .text
-    global _start                   ; Make the _start label globally visible (entry point for the linker)
+    global _start                               ; Hace que la etiqueta _start sea visible globalmente (punto de entrada para el enlazador)
 
 ; ------------------------------------------------------------------------------
-; Program Entry Point
+; Punto de Entrada del Programa
 ; ------------------------------------------------------------------------------
 _start:
-    ; --- Seed and Generate Target Number (Pseudo-Random) ---
-    ; Uses the CPU's Time Stamp Counter (TSC) as a basic seed. Note: This is
-    ; not cryptographically secure randomness.
-    rdtsc                           ; Read Time Stamp Counter into EDX:EAX (high:low 64 bits)
-    mov ecx, 10                     ; Set the divisor to 10 for modulo operation
-    xor edx, edx                    ; Clear EDX (high part of dividend) for 32-bit division
-                                    ; We only use the lower 32 bits (EAX) from TSC for simplicity.
-    div ecx                         ; Divide EDX:EAX by ECX (10). Quotient in EAX, Remainder in EDX.
-                                    ; The remainder (EDX) will be 0-9.
-    add edx, 1                      ; Add 1 to the remainder to get a range of 1-10.
-    mov ebx, edx                    ; Store the target number (1-10) in EBX for later comparison.
-                                    ; Using EBX as it's a callee-saved register (though not critical here).
+    ; --- Sembrar y Generar Número Objetivo (Pseudoaleatorio) ---
+    ; Usa el Contador de Marca de Tiempo (TSC) de la CPU como una semilla básica. Nota: Esto no es
+    ; aleatoriedad criptográficamente segura.
+    rdtsc                                       ; Lee el Contador de Marca de Tiempo en EDX:EAX (alto:bajo 64 bits)
+    mov ecx, 10                                 ; Establece el divisor en 10 para la operación de módulo
+    xor edx, edx                                ; Limpia EDX (parte alta del dividendo) para división de 32 bits
+                                                ; Solo usamos los 32 bits inferiores (EAX) del TSC por simplicidad.
+    div ecx                                     ; Divide EDX:EAX por ECX (10). Cociente en EAX, Resto en EDX.
+                                                ; El resto (EDX) será 0-9.
+    add edx, 1                                  ; Suma 1 al resto para obtener un rango de 1-10.
+    mov ebx, edx                                ; Almacena el número objetivo (1-10) en EBX para comparación posterior.
+                                                ; Usando EBX ya que es un registro guardado por la función llamada (aunque no es crítico aquí).
 
 ; ------------------------------------------------------------------------------
-; Main Game Loop
+; Bucle Principal del Juego
 ; ------------------------------------------------------------------------------
 game_loop:
-    ; --- Prompt User for Input ---
-    ; Use the sys_write system call to display the prompt message.
-    mov rax, 1                      ; System call number for sys_write
-    mov rdi, 1                      ; File descriptor 1: stdout (standard output)
-    mov rsi, prompt                 ; Address of the string to write (prompt message)
-    mov rdx, prompt_len             ; Number of bytes to write (length of prompt)
-    syscall                         ; Invoke the kernel to perform the write operation
+    ; --- Solicitar Entrada al Usuario ---
+    ; Usa la llamada al sistema sys_write para mostrar el mensaje de solicitud.
+    mov rax, 1                                  ; Número de llamada al sistema para sys_write
+    mov rdi, 1                                  ; Descriptor de archivo 1: stdout (salida estándar)
+    mov rsi, prompt                             ; Dirección de la cadena a escribir (mensaje de solicitud)
+    mov rdx, prompt_len                         ; Número de bytes a escribir (longitud de la solicitud)
+    syscall                                     ; Invoca al kernel para realizar la operación de escritura
 
-    ; --- Read User Input ---
-    ; Use the sys_read system call to read from standard input.
-    sub rsp, 16                     ; Allocate 16 bytes on the stack for the input buffer.
-                                    ; This provides space for input like "10\n" plus padding.
-    mov rsi, rsp                    ; Point RSI to the beginning of the allocated buffer.
-    mov rax, 0                      ; System call number for sys_read
-    mov rdi, 0                      ; File descriptor 0: stdin (standard input)
-    mov rdx, 16                     ; Maximum number of bytes to read into the buffer (RSI)
-    syscall                         ; Invoke the kernel to perform the read operation.
-                                    ; RAX will contain the number of bytes actually read.
+    ; --- Leer Entrada del Usuario ---
+    ; Usa la llamada al sistema sys_read para leer desde la entrada estándar.
+    sub rsp, 16                                 ; Asigna 16 bytes en la pila para el búfer de entrada.
+                                                ; Esto proporciona espacio para entradas como "10\n" más relleno.
+    mov rsi, rsp                                ; Apunta RSI al inicio del búfer asignado.
+    mov rax, 0                                  ; Número de llamada al sistema para sys_read
+    mov rdi, 0                                  ; Descriptor de archivo 0: stdin (entrada estándar)
+    mov rdx, 16                                 ; Número máximo de bytes a leer en el búfer (RSI)
+    syscall                                     ; Invoca al kernel para realizar la operación de lectura.
+                                                ; RAX contendrá el número de bytes realmente leídos.
 
-    ; --- Input Validation (Length Check) ---
-    ; Check the number of bytes read (returned in RAX) to determine if the input
-    ; could potentially be a valid single digit (e.g., "5\n" -> 2 bytes) or
-    ; the number ten ("10\n" -> 3 bytes). Includes the newline character.
-    cmp rax, 2                      ; Is the input exactly 2 bytes long? (e.g., '1' + newline)
-    je check_single_digit           ; If yes, jump to handle single-digit input.
-    cmp rax, 3                      ; Is the input exactly 3 bytes long? (e.g., '10' + newline)
-    je check_ten                    ; If yes, jump to check if it's specifically "10".
-    jmp invalid_input               ; If neither 2 nor 3 bytes, the input format is invalid.
+    ; --- Validación de Entrada (Verificación de Longitud) ---
+    ; Verifica el número de bytes leídos (devuelto en RAX) para determinar si la entrada
+    ; podría ser un dígito único válido (ej., "5\n" -> 2 bytes) o
+    ; el número diez ("10\n" -> 3 bytes). Incluye el carácter de salto de línea.
+    cmp rax, 2                                  ; ¿La entrada tiene exactamente 2 bytes de longitud? (ej., '1' + salto de línea)
+    je check_single_digit                       ; Si es así, salta para manejar la entrada de un solo dígito.
+    cmp rax, 3                                  ; ¿La entrada tiene exactamente 3 bytes de longitud? (ej., '10' + salto de línea)
+    je check_ten                                ; Si es así, salta para verificar si es específicamente "10".
+    jmp invalid_input                           ; Si no son ni 2 ni 3 bytes, el formato de entrada es inválido.
 
 ; ------------------------------------------------------------------------------
-; Input Handling: Check for "10"
+; Manejo de Entrada: Verificar "10"
 ; ------------------------------------------------------------------------------
 check_ten:
-    ; Input length was 3 bytes. Verify it's exactly "10\n".
-    movzx eax, byte [rsp]           ; Load the first byte from the buffer into EAX (zero-extended).
-                                    ; Using movzx ensures upper bits of EAX are zero.
-    cmp eax, '1'                    ; Is the first character '1'?
-    jne invalid_input               ; If not '1', jump to invalid input handling.
+    ; La longitud de la entrada fue de 3 bytes. Verifica que sea exactamente "10\n".
+    movzx eax, byte [rsp]                       ; Carga el primer byte del búfer en EAX (extendido con ceros).
+                                                ; Usar movzx asegura que los bits superiores de EAX sean cero.
+    cmp eax, '1'                                ; ¿Es el primer carácter '1'?
+    jne invalid_input                           ; Si no es '1', salta al manejo de entrada inválida.
 
-    movzx eax, byte [rsp+1]         ; Load the second byte from the buffer into EAX (zero-extended).
-    cmp eax, '0'                    ; Is the second character '0'?
-    jne invalid_input               ; If not '0', jump to invalid input handling.
+    movzx eax, byte [rsp+1]                     ; Carga el segundo byte del búfer en EAX (extendido con ceros).
+    cmp eax, '0'                                ; ¿Es el segundo carácter '0'?
+    jne invalid_input                           ; Si no es '0', salta al manejo de entrada inválida.
 
-    ; If we reach here, the input is "10\n".
-    mov edi, 10                     ; Set EDI to the integer value 10. EDI will hold the user's guess.
-    jmp valid_input                 ; Jump to the common validation/comparison logic.
+    ; Si llegamos aquí, la entrada es "10\n".
+    mov edi, 10                                 ; Establece EDI al valor entero 10. EDI contendrá la adivinanza del usuario.
+    jmp valid_input                             ; Salta a la lógica común de validación/comparación.
 
 ; ------------------------------------------------------------------------------
-; Input Handling: Check for Single Digit ('1'-'9')
+; Manejo de Entrada: Verificar un Solo Dígito ('1'-'9')
 ; ------------------------------------------------------------------------------
 check_single_digit:
-    ; Input length was 2 bytes. Verify it's a digit '1'-'9' followed by newline.
-    movzx eax, byte [rsp]           ; Load the first byte (the digit) into EAX (zero-extended).
-    cmp eax, '1'                    ; Compare ASCII value with '1'.
-    jl invalid_input                ; If less than '1', it's invalid (handles '0' case too).
-    cmp eax, '9'                    ; Compare ASCII value with '9'.
-    jg invalid_input                ; If greater than '9', it's invalid.
+    ; La longitud de la entrada fue de 2 bytes. Verifica que sea un dígito '1'-'9' seguido de salto de línea.
+    movzx eax, byte [rsp]                       ; Carga el primer byte (el dígito) en EAX (extendido con ceros).
+    cmp eax, '1'                                ; Compara el valor ASCII con '1'.
+    jl invalid_input                            ; Si es menor que '1', es inválido (también maneja el caso '0').
+    cmp eax, '9'                                ; Compara el valor ASCII con '9'.
+    jg invalid_input                            ; Si es mayor que '9', es inválido.
 
-    ; If we reach here, the character is a valid digit '1' through '9'.
-    sub eax, '0'                    ; Convert the ASCII digit character to its integer equivalent
-                                    ; (e.g., '5' (0x35) - '0' (0x30) = 5 (0x05)).
-    mov edi, eax                    ; Move the resulting integer value into EDI.
-    jmp valid_input                 ; Jump to the common validation/comparison logic.
+    ; Si llegamos aquí, el carácter es un dígito válido del '1' al '9'.
+    sub eax, '0'                                ; Convierte el carácter de dígito ASCII a su equivalente entero
+                                                ; (ej., '5' (0x35) - '0' (0x30) = 5 (0x05)).
+    mov edi, eax                                ; Mueve el valor entero resultante a EDI.
+    jmp valid_input                             ; Salta a la lógica común de validación/comparación.
 
 ; ------------------------------------------------------------------------------
-; Input Handling: Invalid Input
+; Manejo de Entrada: Entrada Inválida
 ; ------------------------------------------------------------------------------
 invalid_input:
-    ; Display the "Invalid input!" message.
-    mov rax, 1                      ; sys_write system call
-    mov rdi, 1                      ; stdout
-    mov rsi, invalid_msg            ; Address of the invalid message string
-    mov rdx, invalid_msg_len        ; Length of the message
-    syscall                         ; Invoke kernel
+    ; Muestra el mensaje "¡Entrada inválida!".
+    mov rax, 1                                  ; llamada al sistema sys_write
+    mov rdi, 1                                  ; stdout
+    mov rsi, invalid_msg                        ; Dirección de la cadena del mensaje inválido
+    mov rdx, invalid_msg_len                    ; Longitud del mensaje
+    syscall                                     ; Invoca al kernel
 
-    ; Clean up stack from this attempt before looping back.
-    add rsp, 16                     ; Deallocate the 16-byte buffer from the stack.
+    ; Limpia la pila de este intento antes de volver al bucle.
+    add rsp, 16                                 ; Desasigna el búfer de 16 bytes de la pila.
 
-    jmp game_loop                   ; Jump back to the start of the game loop to prompt again.
+    jmp game_loop                               ; Salta de vuelta al inicio del bucle del juego para solicitar de nuevo.
 
 ; ------------------------------------------------------------------------------
-; Input Handling: Valid Input Processing
+; Manejo de Entrada: Procesamiento de Entrada Válida
 ; ------------------------------------------------------------------------------
 valid_input:
-    ; Clean up the stack now that input is parsed.
-    add rsp, 16                     ; Deallocate the 16-byte buffer from the stack.
+    ; Limpia la pila ahora que la entrada ha sido parseada.
+    add rsp, 16                                 ; Desasigna el búfer de 16 bytes de la pila.
 
-    ; --- Validate Number Range (Redundant Check) ---
-    ; Although check_single_digit and check_ten implicitly handle the 1-10 range,
-    ; this provides an explicit safeguard. EDI holds the parsed integer guess.
-    cmp edi, 1                      ; Compare user's guess (EDI) with 1.
-    jl invalid_input_after_parse    ; If less than 1 (shouldn't happen with current logic, but safe).
-    cmp edi, 10                     ; Compare user's guess (EDI) with 10.
-    jg invalid_input_after_parse    ; If greater than 10 (shouldn't happen).
+    ; --- Validar Rango de Número (Verificación Redundante) ---
+    ; Aunque check_single_digit y check_ten manejan implícitamente el rango 1-10,
+    ; esto proporciona una salvaguarda explícita. EDI contiene la adivinanza entera parseada.
+    cmp edi, 1                                  ; Compara la adivinanza del usuario (EDI) con 1.
+    jl invalid_input                            ; Si es menor que 1 (no debería ocurrir con la lógica actual, pero es seguro).
+    cmp edi, 10                                 ; Compara la adivinanza del usuario (EDI) con 10.
+    jg invalid_input                            ; Si es mayor que 10 (no debería ocurrir).
 
-    ; --- Compare Guess with Target Number ---
-    ; EBX holds the target random number generated at the start.
-    ; EDI holds the user's valid integer guess (1-10).
-    cmp edi, ebx                    ; Compare the guess (EDI) with the target (EBX).
-    je correct                      ; If equal, jump to the 'correct' handler.
-    jl too_low                      ; If guess < target (Jump Less), jump to 'too_low'.
-    ; If neither equal nor less, it must be greater. Fall through to 'too_high'.
+    ; --- Comparar Adivinanza con Número Objetivo ---
+    ; EBX contiene el número aleatorio objetivo generado al inicio.
+    ; EDI contiene la adivinanza entera válida del usuario (1-10).
+    cmp edi, ebx                                ; Compara la adivinanza (EDI) con el objetivo (EBX).
+    je correct                                  ; Si es igual, salta al manejador 'correct'.
+    jl too_low                                  ; Si la adivinanza < objetivo (Saltar si es Menor), salta a 'too_low'.
+    ; Si no es igual ni menor, debe ser mayor. Continúa hacia 'too_high'.
 
 ; ------------------------------------------------------------------------------
-; Guess Feedback: Too High
+; Retroalimentación de Adivinanza: Demasiado Alto
 ; ------------------------------------------------------------------------------
 too_high:
-    ; Display the "Too high!" message.
-    mov rax, 1                      ; sys_write system call
-    mov rdi, 1                      ; stdout
-    mov rsi, high_msg               ; Address of the 'too high' message string
-    mov rdx, high_msg_len           ; Length of the message
-    syscall                         ; Invoke kernel
-    jmp game_loop                   ; Go back for another guess.
+    ; Muestra el mensaje "¡Demasiado alto!".
+    mov rax, 1                                  ; llamada al sistema sys_write
+    mov rdi, 1                                  ; stdout
+    mov rsi, high_msg                           ; Dirección de la cadena del mensaje 'demasiado alto'
+    mov rdx, high_msg_len                       ; Longitud del mensaje
+    syscall                                     ; Invoca al kernel
+    jmp game_loop                               ; Vuelve para otra adivinanza.
 
 ; ------------------------------------------------------------------------------
-; Guess Feedback: Too Low
+; Retroalimentación de Adivinanza: Demasiado Bajo
 ; ------------------------------------------------------------------------------
 too_low:
-    ; Display the "Too low!" message.
-    mov rax, 1                      ; sys_write system call
-    mov rdi, 1                      ; stdout
-    mov rsi, low_msg                ; Address of the 'too low' message string
-    mov rdx, low_msg_len            ; Length of the message
-    syscall                         ; Invoke kernel
-    jmp game_loop                   ; Go back for another guess.
+    ; Muestra el mensaje "¡Demasiado bajo!".
+    mov rax, 1                                  ; llamada al sistema sys_write
+    mov rdi, 1                                  ; stdout
+    mov rsi, low_msg                            ; Dirección de la cadena del mensaje 'demasiado bajo'
+    mov rdx, low_msg_len                        ; Longitud del mensaje
+    syscall                                     ; Invoca al kernel
+    jmp game_loop                               ; Vuelve para otra adivinanza.
 
 ; ------------------------------------------------------------------------------
-; Guess Feedback: Correct
+; Retroalimentación de Adivinanza: Correcta
 ; ------------------------------------------------------------------------------
 correct:
-    ; Display the "Correct!" message.
-    mov rax, 1                      ; sys_write system call
-    mov rdi, 1                      ; stdout
-    mov rsi, correct_msg            ; Address of the 'correct' message string
-    mov rdx, correct_msg_len        ; Length of the message
-    syscall                         ; Invoke kernel
+    ; Muestra el mensaje "¡Correcto!".
+    mov rax, 1                                  ; llamada al sistema sys_write
+    mov rdi, 1                                  ; stdout
+    mov rsi, correct_msg                        ; Dirección de la cadena del mensaje 'correcto'
+    mov rdx, correct_msg_len                    ; Longitud del mensaje
+    syscall                                     ; Invoca al kernel
 
-    ; --- Exit Program ---
-    ; Use the sys_exit system call to terminate the program cleanly.
-    mov rax, 60                     ; System call number for sys_exit
-    xor rdi, rdi                    ; Exit code 0 (success). XORing a register with itself zeros it.
-    syscall                         ; Invoke the kernel to terminate the process.
-
-; ------------------------------------------------------------------------------
-; Helper Label for Post-Parse Invalid Input (Safety Net)
-; ------------------------------------------------------------------------------
-; This label is jumped to if the range check within valid_input fails.
-; It ensures the invalid message is shown even in this unlikely scenario.
-invalid_input_after_parse:
-    ; Display the "Invalid input!" message.
-    mov rax, 1                      ; sys_write system call
-    mov rdi, 1                      ; stdout
-    mov rsi, invalid_msg            ; Address of the invalid message string
-    mov rdx, invalid_msg_len        ; Length of the message
-    syscall                         ; Invoke kernel
-    jmp game_loop                   ; Go back for another guess (stack already cleaned in valid_input).
+    ; --- Salir del Programa ---
+    ; Usa la llamada al sistema sys_exit para terminar el programa limpiamente.
+    mov rax, 60                                 ; Número de llamada al sistema para sys_exit
+    xor rdi, rdi                                ; Código de salida 0 (éxito). Hacer XOR de un registro consigo mismo lo pone a cero.
+    syscall                                     ; Invoca al kernel para terminar el proceso.
 
 ; ==============================================================================
-; End of Code
+; Fin del Código
 ; ==============================================================================
+
 
